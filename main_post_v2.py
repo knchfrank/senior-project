@@ -200,7 +200,8 @@ red = (128, 0, 0)
 X = 1200
 Y = 800
 import os
-path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src', 'testnav', 'src')
+# path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src', 'testnav', 'src')
+path = os.path.join(os.path.expanduser('~'), 'test_ws', 'src', 'test_pkg', 'scripts')
 display_surface = pygame.display.set_mode((0, 0 ))
 pygame.display.set_caption('Image')
 image = pygame.image.load(path + '/post_map_.jpg') 

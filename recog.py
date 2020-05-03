@@ -13,11 +13,15 @@ user_command = 'empty'
 robot_status = 'empty'
 def user_cb(msg):
     global user_command
-    user_command = msg.data # target or cance
+    user_command = msg.data # target or cancel
+    print('received from command : ' + str(user_command))
+    if user_command == 'cancel':
+        pub_to_robot.publish('cancel')
 
 def robot_cb(msg):
     global robot_status
     robot_status = msg.data # target or cance
+    print('received from robot_status : ' + str(robot_status))
 
 # initial node
 rospy.init_node('face_recognition')
@@ -34,7 +38,8 @@ def recognition():
     # inital face recog
     video_capture = cv2.VideoCapture(0)
     path = "/home"
-    user_image = face_recognition.load_image_file(os.path.join(path, "post/test_ws/src/test_pkg/scripts", "temp.jpg"))
+    # user_image = face_recognition.load_image_file(os.path.join(path, "post/test_ws/src/test_pkg/scripts", "temp2.jpg"))
+    user_image = face_recognition.load_image_file(os.path.join(path, "pi/catkin_ws/src/testnav/src", "temp2.jpg"))
     user_face_encoding = face_recognition.face_encodings(user_image)[0]
     known_face_encodings = [user_face_encoding,]
     known_face_names = ["user",]
@@ -45,8 +50,10 @@ def recognition():
     process_this_frame = True
     published_goal = 0
     published_cancel = 0
+    published_found = 0
     while not rospy.is_shutdown():
-        if user_command == 'cancel' or robot_status == 'arrvied':
+        if user_command == 'cancel' or robot_status == 'arrived':
+            print('user_command : ' + str(user_command) + ', robot_status : ' + str(robot_status))
             break
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -56,7 +63,7 @@ def recognition():
         ret, frame = video_capture.read()
 
         # Resize frame of video to 1/4 size for faster face recognition processing
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.255)
 
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
         rgb_small_frame = small_frame[:, :, ::-1]
@@ -87,26 +94,35 @@ def recognition():
             published_cancel = 0
             if not published_goal:
                 pub_to_robot.publish(user_command)
-                print('published : ' + str(user_command))
+                pub_to_user.publish('found')
+                print('published to robot : ' + str(user_command) + ', published to user : found')
                 published_goal = 1
+            # if not published_found:
+            #     pub_to_user.publish('found')
+            #     print('published to robot : cancel, published to user : found')
+            #     published_found = 1
+        else:
+            time_lost = rospy.Time.now() - last_time_found
 
-        time_lost = rospy.Time.now() - last_time_found
+            if time_lost.secs != 0:
+                print('lost user : ' + str(time_lost.secs) + 's')
+            
+            # if time_lost.secs > 10:  # total time lost 
+            #     pub_to_robot.publish('cancel')
+            #     pub_to_user.publish('not_found_end')
+            #     print('published to robot : cancel, published to user : not_found_end')
+            #     break
+            if time_lost.secs > 1:    # little bit time lost
+                if not published_cancel:
+                    pub_to_robot.publish('cancel')
+                    pub_to_user.publish('not_found')
+                    print('published to robot : cancel, published to user : not_found')
+                    published_goal = 0
+                    published_cancel = 1
+                    published_found = 0
+            else:
+                pass
 
-        if time_lost.secs != 0:
-            print('lost user : ' + str(time_lost.secs) + 's')
-        
-        if time_lost.secs > 4:
-            pub_to_robot.publish('cancel')
-            pub_to_user.publish('not_found_end')
-            print('published to robot : cancel, published to user : not_found_end')
-            break
-        elif time_lost.secs > 2:
-            if not published_cancel:
-                pub_to_robot.publish('cancel')
-                pub_to_user.publish('not_found')
-                print('published to robot : cancel, published to user : not_found')
-                published_goal = 0
-                published_cancel = 1
 
 
         process_this_frame = not process_this_frame
@@ -128,10 +144,18 @@ def recognition():
             cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
         # Display the resulting image
-        cv2.imshow('Video', frame)
+        # cv2.imshow('Video', frame)
     
     video_capture.release()
     cv2.destroyAllWindows()
+
+def print_all_flag():
+    global user_command
+    global user_status
+    global robot_status
+    print('user_command' + ' : ' + str(user_command))
+    print('user_status' + ' : ' + str(user_status))
+    print('robot_status' + ' : ' + str(robot_status))
 
 print('ready to get command...')
 while not rospy.is_shutdown():
@@ -139,6 +163,9 @@ while not rospy.is_shutdown():
         print('start recognition...')
         recognition()
         print('end recognition...')
+        user_status = 'empty'
         user_command = 'empty'
+        robot_status = 'empty'
+        print_all_flag()
     else:
         pass

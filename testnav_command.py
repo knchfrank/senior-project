@@ -14,7 +14,7 @@ def user_cb(status):
         print('not found user!.....end')
 
 rospy.init_node('navigation_command')
-pub = rospy.Publisher('command', String, queue_size = 1)
+pub = rospy.Publisher('robot_command', String, queue_size = 1)
 rospy.Subscriber('robot_status', String, robot_cb)
 rospy.Subscriber('user_status', String, user_cb)
 
