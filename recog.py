@@ -54,7 +54,10 @@ def recognition():
     while not rospy.is_shutdown():
         if user_command == 'cancel' or robot_status == 'arrived':
             print('user_command : ' + str(user_command) + ', robot_status : ' + str(robot_status))
-            break
+            if user_command == 'cancel':
+                pub_to_robot.publish('cancel')
+                pub_to_user.publish('cancel')
+            break  
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -107,11 +110,11 @@ def recognition():
             if time_lost.secs != 0:
                 print('lost user : ' + str(time_lost.secs) + 's')
             
-            # if time_lost.secs > 10:  # total time lost 
-            #     pub_to_robot.publish('cancel')
-            #     pub_to_user.publish('not_found_end')
-            #     print('published to robot : cancel, published to user : not_found_end')
-            #     break
+            if time_lost.secs > 5:  # total time lost 
+                pub_to_robot.publish('center')
+                pub_to_user.publish('not_found_end')
+                print('published to robot : cancel, published to user : not_found_end')
+                break
             if time_lost.secs > 1:    # little bit time lost
                 if not published_cancel:
                     pub_to_robot.publish('cancel')

@@ -68,7 +68,7 @@ def goto(client, command):
 
         goal.target_pose.pose.orientation.x = 0.0
         goal.target_pose.pose.orientation.y = 0.0
-        goal.target_pose.pose.orientation.z = -0.7091
+        goal.target_pose.pose.orientation.z = 0.0
         goal.target_pose.pose.orientation.w = 0.7050
 
     client.send_goal(goal)
