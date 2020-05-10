@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<launch>
+
+	<node pkg="ydlidar" type="ydlidar_node" name="ydlidar_node" output ="screen">
+	<param name="port" type = "string" value ="/dev/ttyLidar"/>
+	<param name="baudrate"     type="int"    value="115200"/>
+   	<param name="frame_id"     type="string" value="laser_frame"/>
+   	<param name="low_exposure"  type="bool"   value="false"/>
+    	<param name="resolution_fixed"    type="bool"   value="true"/>
+    	<param name="auto_reconnect"    type="bool"   value="true"/>
+    	<param name="reversion"    type="bool"   value="true"/>
+    	<param name="angle_min"    type="double" value="-180" />
+    	<param name="angle_max"    type="double" value="180" />
+    	<param name="range_min"    type="double" value="0.1" />
+    	<param name="range_max"    type="double" value="10.0" />
+    	<param name="ignore_array" type="string" value="" />
+    	<param name="samp_rate"    type="int"    value="9"/>
+    	<param name="frequency"    type="double" value="7"/>
+    	</node>
+	
+	
+	<node pkg="anman_robotbase" name="base_controller" type="pnu_base.py" output="screen">
+        <param name="cmd_topic" value="cmd_vel"/>
+        <param name="cmd_freq" value="10"/>
+        <param name="base_frame_id" value="base_footprint"/>
+        <param name="publish_odom_frame" value="false"/>
+        <param name="wheel_sep_width" value="0.25"/>
+        <param name="wheel_sep_length" value="0.5"/>
+        <param name="wheel_radius" value="0.05"/>
+    	</node>
+
+    	<node pkg="tf" type="static_transform_publisher" name = "base_link_to_laser_frame" args="0.13 0 0.22 0 0 0 /base_link /laser_frame 40"/>
+
+    	<node pkg="rf2o_laser_odometry" type="rf2o_laser_odometry_node" name="rf2o_laser_odometry" output="screen">
+        <param name="laser_scan_topic" value="/scan"/>        # topic where the lidar scans are being published
+        <param name="odom_topic" value="/odom" />              # topic where tu publish the odometry estimations
+        <param name="publish_tf" value="true" />                   # wheter or not to publish the tf::transform (base->odom)
+        <param name="base_frame_id" value="/base_link"/>            # frame_id (tf) of the mobile robot base. A tf transform from the laser_frame to the base_frame is mandatory
+        <param name="odom_frame_id" value="/odom" />                # frame_id (tf) to publish the odometry estimations    
+        <param name="init_pose_from_topic" value="" /> # (Odom topic) Leave empty to start at point (0,0)
+        <param name="freq" value="6.0"/>                            # Execution frequency.
+        <param name="verbose" value="false" />                       # verbose
+  	</node>
+	
+	<!-- Map server -->
+    	<node pkg="map_server" name="map_nav_server" type="map_server" args="$(find pnu_robot)/maps/mymap.yaml"/>
+	<!-- <node pkg="map_server" name="map_nav_server" type="map_server" args="$(find pnu_robot)/maps/floor11ver6.yaml"/> -->						
+		
+    	<!-- AMCL -->
+    	<node pkg="amcl" type="amcl" name="amcl" output="screen">
+        <param name="min_particles" value="2500"/>
+        <param name="max_particles" value="7500"/>
+        <param name="kld_err" value="0.05"/>
+        <param name="update_min_d" value="0.02"/>
+        <param name="update_min_a" value="0.1"/>
+        <param name="resample_interval" value="1"/>
+        <param name="recovery_alpha_slow" value="0.001"/>
+        <param name="recovery_alpha_fast" value="0.1"/>
+        <param name="initial_pose_x" value="-0.1593"/>	
+        <param name="initial_pose_y" value="-0.0188"/>
+        <param name="initial_pose_a" value="0"/>
+        <remap from="scan" to="scan"/>
+        <param name="laser_max_range" value="9.5"/>
+        <param name="laser_z_hit" value="0.5"/>
+        <param name="laser_z_short" value="0.05"/>
+        <param name="laser_z_max" value="0.05"/>
+        <param name="laser_z_rand" value="0.35"/>
+        <param name="laser_sigma_hit" value="0.2"/>
+        <param name="laser_lambda_short" value="0.1"/>
+        <param name="laser_likelihood_max_dist" value="2.0"/>
+        <param name="laser_model_type" value="likelihood_field"/>
+        <param name="odom_model_type" value="omni"/>
+        <param name="odom_alpha5" value="0.1"/>
+        <param name="transform_tolerance" value="1.2"/>
+        <param name="gui_publish_rate" value="5.0"/>
+        <param name="laser_max_beams" value="180"/>
+        <param name="odom_alpha1" value="0.25"/>
+        <param name="odom_alpha2" value="0.25"/>
+        <param name="odom_alpha3" value="0.25"/>
+        <param name="odom_alpha4" value="0.25"/>
+        <param name="odom_frame_id" value="odom"/>
+        <param name="base_frame_id" value="base_link"/>
+    	</node>
+	
+	<!-- move base -->
+	<node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+	
+	<!-- <param name="base_global_planner" value="carrot_planner/CarrotPlanner" /> -->
+	<param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+
+	<rosparam file="$(find pnu_robot)/config/movebase/costmap_common_params.yaml" command="load" ns="global_costmap"/>
+	<rosparam file="$(find pnu_robot)/config/movebase/costmap_common_params.yaml" command="load" ns="local_costmap"/>
+	<rosparam file="$(find pnu_robot)/config/movebase/local_costmap_params.yaml" command="load"/>
+	<rosparam file="$(find pnu_robot)/config/movebase/global_costmap_params.yaml" command="load"/>
+	<rosparam file="$(find pnu_robot)/config/movebase/base_local_planner_params.yaml" command="load"/>
+	</node>
+
+	<!-- navigation -->
+	<node pkg="simple_navigation_goals" type="testnav_navigation.py" name="testnav_navigation" output="screen">
+    </node>
+    <!-- <node pkg="simple_navigation_goals" type="testnav_command.py" name="testnav_command" output="screen">
+    </node> -->
+</launch>
